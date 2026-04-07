@@ -40,6 +40,14 @@ from morph.reflect import (
     STRING_NAME,
     FLOAT64_NAME,
     FLOAT32_NAME,
+    OPT_INT_NAME,
+    OPT_STRING_NAME,
+    OPT_FLOAT64_NAME,
+    OPT_BOOL_NAME,
+    LIST_INT_NAME,
+    LIST_STRING_NAME,
+    LIST_FLOAT64_NAME,
+    LIST_BOOL_NAME,
 )
 
 
@@ -69,10 +77,17 @@ def parse_args[T: Morphable](args: List[String]) raises -> T:
     var i = 0
     while i < len(args):
         var arg = args[i]
-        if not arg.startswith("--"):
-            raise Error("Expected --flag, got: " + arg)
+        var is_long = arg.startswith("--")
+        var is_short = not is_long and arg.startswith("-") and len(arg) == 2
 
-        var flag = arg.removeprefix("--")
+        if not is_long and not is_short:
+            raise Error("Expected --flag or -x, got: " + arg)
+
+        var flag: String
+        if is_long:
+            flag = String(arg.removeprefix("--"))
+        else:
+            flag = String(arg.removeprefix("-"))
 
         var matched = False
 
@@ -83,7 +98,9 @@ def parse_args[T: Morphable](args: List[String]) raises -> T:
             comptime type_name = get_type_name[field_type]()
 
             var cli_name = String(field_name).replace("_", "-")
-            if flag == cli_name:
+            var fn_str = String(field_name)
+            var short_name = chr(Int(fn_str.as_bytes()[0]))
+            if flag == cli_name or (is_short and flag == short_name):
                 matched = True
                 ref field = trait_downcast[_Base](__struct_field_ref(idx, result))
                 var ptr = UnsafePointer(to=field)
@@ -92,6 +109,9 @@ def parse_args[T: Morphable](args: List[String]) raises -> T:
                 if type_name == BOOL_NAME:
                     ptr.destroy_pointee()
                     ptr.bitcast[Bool]().init_pointee_move(True)
+                elif type_name == OPT_BOOL_NAME:
+                    ptr.destroy_pointee()
+                    ptr.bitcast[Optional[Bool]]().init_pointee_move(True)
                 elif type_name == INT_NAME:
                     i += 1
                     if i >= len(args):
@@ -99,6 +119,13 @@ def parse_args[T: Morphable](args: List[String]) raises -> T:
                     var val = atol(args[i])
                     ptr.destroy_pointee()
                     ptr.bitcast[Int]().init_pointee_move(val)
+                elif type_name == OPT_INT_NAME:
+                    i += 1
+                    if i >= len(args):
+                        raise Error("Missing value for --" + cli_name)
+                    var val = atol(args[i])
+                    ptr.destroy_pointee()
+                    ptr.bitcast[Optional[Int]]().init_pointee_move(val)
                 elif type_name == INT64_NAME:
                     i += 1
                     if i >= len(args):
@@ -113,6 +140,13 @@ def parse_args[T: Morphable](args: List[String]) raises -> T:
                     var val = atof(args[i])
                     ptr.destroy_pointee()
                     ptr.bitcast[Float64]().init_pointee_move(val)
+                elif type_name == OPT_FLOAT64_NAME:
+                    i += 1
+                    if i >= len(args):
+                        raise Error("Missing value for --" + cli_name)
+                    var val = atof(args[i])
+                    ptr.destroy_pointee()
+                    ptr.bitcast[Optional[Float64]]().init_pointee_move(val)
                 elif type_name == STRING_NAME:
                     i += 1
                     if i >= len(args):
@@ -120,6 +154,30 @@ def parse_args[T: Morphable](args: List[String]) raises -> T:
                     var val = args[i]
                     ptr.destroy_pointee()
                     ptr.bitcast[String]().init_pointee_move(val)
+                elif type_name == OPT_STRING_NAME:
+                    i += 1
+                    if i >= len(args):
+                        raise Error("Missing value for --" + cli_name)
+                    var val = args[i]
+                    ptr.destroy_pointee()
+                    ptr.bitcast[Optional[String]]().init_pointee_move(val)
+                elif type_name == LIST_STRING_NAME:
+                    i += 1
+                    if i >= len(args):
+                        raise Error("Missing value for --" + cli_name)
+                    var parts = _split_comma(args[i])
+                    ptr.destroy_pointee()
+                    ptr.bitcast[List[String]]().init_pointee_move(parts^)
+                elif type_name == LIST_INT_NAME:
+                    i += 1
+                    if i >= len(args):
+                        raise Error("Missing value for --" + cli_name)
+                    var parts = _split_comma(args[i])
+                    var int_list = List[Int]()
+                    for pi in range(len(parts)):
+                        int_list.append(atol(parts[pi]))
+                    ptr.destroy_pointee()
+                    ptr.bitcast[List[Int]]().init_pointee_move(int_list^)
 
         if not matched:
             raise Error("Unknown flag: --" + flag)
@@ -153,15 +211,40 @@ def usage[T: AnyType]() -> String:
         var cli_name = String(field_name).replace("_", "-")
 
         comptime
-        if type_name == BOOL_NAME:
-            out += "  --" + cli_name + "\n"
-        elif type_name == INT_NAME or type_name == INT64_NAME:
+        if type_name == BOOL_NAME or type_name == OPT_BOOL_NAME:
+            out += "  --" + cli_name + "  (flag)\n"
+        elif type_name == INT_NAME or type_name == INT64_NAME or type_name == OPT_INT_NAME:
             out += "  --" + cli_name + " <int>\n"
-        elif type_name == FLOAT64_NAME:
+        elif type_name == FLOAT64_NAME or type_name == OPT_FLOAT64_NAME:
             out += "  --" + cli_name + " <float>\n"
-        elif type_name == STRING_NAME:
+        elif type_name == STRING_NAME or type_name == OPT_STRING_NAME:
             out += "  --" + cli_name + " <string>\n"
+        elif type_name == LIST_STRING_NAME:
+            out += "  --" + cli_name + " <a,b,c>\n"
+        elif type_name == LIST_INT_NAME:
+            out += "  --" + cli_name + " <1,2,3>\n"
         else:
             out += "  --" + cli_name + " <value>\n"
 
     return out^
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _split_comma(s: String) -> List[String]:
+    """Split a string by commas, returning a list of trimmed parts."""
+    var result = List[String]()
+    var current = String("")
+    var data = s.as_bytes()
+    for i in range(len(data)):
+        if data[i] == UInt8(ord(",")):
+            result.append(current^)
+            current = String("")
+        else:
+            current += chr(Int(data[i]))
+    if len(current) > 0:
+        result.append(current^)
+    return result^

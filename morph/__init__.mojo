@@ -50,14 +50,18 @@ from .rename import (
     snake_to_screaming,
     apply_rename,
 )
-from .transform import FieldInfo, fields, field_names, as_type
+from .transform import FieldInfo, fields, field_names, as_type, replace, replace_int
 from .validate import (
     ValidationError,
     check_min,
     check_max,
     check_range,
+    check_exclusive_min,
+    check_exclusive_max,
     check_min_float,
     check_max_float,
+    check_exclusive_min_float,
+    check_exclusive_max_float,
     check_non_empty,
     check_min_length,
     check_max_length,

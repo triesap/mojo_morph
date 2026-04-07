@@ -65,6 +65,7 @@ def read[
     skip_private: Bool = False,
     default_if_missing: Bool = False,
     strict: Bool = False,
+    no_optionals: Bool = False,
 ](json_str: String) raises -> T:
     """Deserialize a JSON string into a struct via compile-time reflection.
 
@@ -74,6 +75,7 @@ def read[
         skip_private: If True, skip fields starting with ``_``.
         default_if_missing: If True, missing keys keep defaults instead of raising.
         strict: If True, error on unknown JSON keys (NoExtraFields).
+        no_optionals: If True, reject null for Optional fields (require a value).
 
     Args:
         json_str: A JSON string.
@@ -85,7 +87,7 @@ def read[
         Error on parse failure, missing fields, or type mismatches.
     """
     var json = loads(json_str)
-    return _read_value[T, rename, skip_private, default_if_missing, strict](json)
+    return _read_value[T, rename, skip_private, default_if_missing, strict, no_optionals](json)
 
 
 # ---------------------------------------------------------------------------
@@ -99,6 +101,7 @@ def _read_value[
     skip_private: Bool = False,
     default_if_missing: Bool = False,
     strict: Bool = False,
+    no_optionals: Bool = False,
 ](json: Value) raises -> T:
     """Deserialize a Value into a struct."""
     comptime
@@ -111,7 +114,7 @@ def _read_value[
                 + _type_label(json)
             )
         var result = T()
-        _fill[T, rename, skip_private, default_if_missing, strict](result, json)
+        _fill[T, rename, skip_private, default_if_missing, strict, no_optionals](result, json)
         return result^
 
 
@@ -121,6 +124,7 @@ def _fill[
     skip_private: Bool = False,
     default_if_missing: Bool = False,
     strict: Bool = False,
+    no_optionals: Bool = False,
 ](mut result: T, json: Value) raises:
     """Fill every field of result from the JSON object."""
     comptime field_count = struct_field_count[T]()
@@ -182,6 +186,15 @@ def _fill[
             else:
                 ref field = trait_downcast[_Base](__struct_field_ref(idx, result))
                 var ptr = UnsafePointer(to=field)
+
+                comptime
+                if no_optionals:
+                    comptime
+                    if field_type_name == OPT_INT_NAME or field_type_name == OPT_STRING_NAME or field_type_name == OPT_FLOAT64_NAME or field_type_name == OPT_BOOL_NAME:
+                        if _is_null_field(json, key):
+                            raise Error(
+                                "Field '" + key + "' is null but no_optionals is set"
+                            )
 
                 comptime
                 if field_type_name == STRING_NAME:
@@ -253,7 +266,7 @@ def _fill[
                     var sub_json = loads(raw)
                     if not sub_json.is_object():
                         raise _field_type_error(key, "object", sub_json)
-                    _fill[field_type, rename, skip_private, default_if_missing, False](
+                    _fill[field_type, rename, skip_private, default_if_missing, False, no_optionals](
                         ptr.bitcast[field_type]()[], sub_json
                     )
                 else:

@@ -5,6 +5,7 @@ Provides introspection and transformation operations on structs:
 - ``fields[T]()`` -- list field names and type names
 - ``field_names[T]()`` -- list field names only
 - ``as_type[Target, Source]()`` -- copy matching fields between structs
+- ``replace[T]()`` -- copy struct with one field changed (by name)
 """
 
 from std.reflection import (
@@ -82,6 +83,82 @@ def field_names[T: AnyType]() -> List[String]:
 # ---------------------------------------------------------------------------
 # Struct composition
 # ---------------------------------------------------------------------------
+
+
+def replace[
+    T: Morphable, field_name: StaticString
+](source: T, new_value: String) raises -> T:
+    """Create a copy of source with the named String field replaced.
+
+    Parameters:
+        T: The struct type.
+        field_name: The field to replace (compile-time string).
+
+    Args:
+        source: The original struct.
+        new_value: The new String value for the field.
+
+    Returns:
+        A new struct with the field replaced.
+    """
+    from morph.json.writer import write as _write
+    from morph.json.reader import read as _read
+
+    var json_str = _write(source)
+    var result = _read[T, default_if_missing=True](json_str)
+
+    comptime count = struct_field_count[T]()
+    comptime names = struct_field_names[T]()
+
+    comptime
+    for idx in range(count):
+        comptime fname = names[idx]
+        comptime
+        if fname == field_name:
+            ref field = trait_downcast[_Base](__struct_field_ref(idx, result))
+            var ptr = UnsafePointer(to=field)
+            ptr.destroy_pointee()
+            ptr.bitcast[String]().init_pointee_move(new_value)
+
+    return result^
+
+
+def replace_int[
+    T: Morphable, field_name: StaticString
+](source: T, new_value: Int) raises -> T:
+    """Create a copy of source with the named Int field replaced.
+
+    Parameters:
+        T: The struct type.
+        field_name: The field to replace (compile-time string).
+
+    Args:
+        source: The original struct.
+        new_value: The new Int value for the field.
+
+    Returns:
+        A new struct with the field replaced.
+    """
+    from morph.json.writer import write as _write
+    from morph.json.reader import read as _read
+
+    var json_str = _write(source)
+    var result = _read[T, default_if_missing=True](json_str)
+
+    comptime count = struct_field_count[T]()
+    comptime names = struct_field_names[T]()
+
+    comptime
+    for idx in range(count):
+        comptime fname = names[idx]
+        comptime
+        if fname == field_name:
+            ref field = trait_downcast[_Base](__struct_field_ref(idx, result))
+            var ptr = UnsafePointer(to=field)
+            ptr.destroy_pointee()
+            ptr.bitcast[Int]().init_pointee_move(new_value)
+
+    return result^
 
 
 def as_type[Target: Morphable, Source: AnyType](source: Source) raises -> Target:

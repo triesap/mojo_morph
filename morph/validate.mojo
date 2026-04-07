@@ -104,6 +104,54 @@ def check_max_float(
     return None
 
 
+def check_exclusive_min(
+    value: Int, minimum: Int, field_name: String
+) -> Optional[ValidationError]:
+    """Check value > minimum (exclusive)."""
+    if value <= minimum:
+        return ValidationError(
+            field=field_name,
+            message="must be > " + String(minimum) + ", got " + String(value),
+        )
+    return None
+
+
+def check_exclusive_max(
+    value: Int, maximum: Int, field_name: String
+) -> Optional[ValidationError]:
+    """Check value < maximum (exclusive)."""
+    if value >= maximum:
+        return ValidationError(
+            field=field_name,
+            message="must be < " + String(maximum) + ", got " + String(value),
+        )
+    return None
+
+
+def check_exclusive_min_float(
+    value: Float64, minimum: Float64, field_name: String
+) -> Optional[ValidationError]:
+    """Check float value > minimum (exclusive)."""
+    if value <= minimum:
+        return ValidationError(
+            field=field_name,
+            message="must be > " + String(minimum) + ", got " + String(value),
+        )
+    return None
+
+
+def check_exclusive_max_float(
+    value: Float64, maximum: Float64, field_name: String
+) -> Optional[ValidationError]:
+    """Check float value < maximum (exclusive)."""
+    if value >= maximum:
+        return ValidationError(
+            field=field_name,
+            message="must be < " + String(maximum) + ", got " + String(value),
+        )
+    return None
+
+
 def check_non_empty(value: String, field_name: String) -> Optional[ValidationError]:
     """Check string is non-empty."""
     if len(value) == 0:
