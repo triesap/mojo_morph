@@ -63,7 +63,7 @@ pixi install
 | `String` | yes | yes | yes | planned | planned |
 | `Optional[T]` | yes (null) | no | yes | planned | planned |
 | `List[T]` | yes | no | yes (comma) | planned | planned |
-| Nested structs | yes | no | no | planned | planned |
+| Nested structs | yes | no | yes (dot-notation) | planned | planned |
 | Custom traits | yes | no | no | planned | planned |
 
 Where `T` is one of `Int`, `String`, `Float64`, `Bool`.
@@ -166,6 +166,49 @@ var schema_renamed = json_schema[Config, rename="camelCase"]()
 
 Generates Draft 2020-12 compatible schema with `type`, `properties`, `required`.
 
+Add descriptions and deprecated markers:
+
+```mojo
+from morph import json_schema_described
+from std.collections import Dict
+
+var descriptions = Dict[String, String]()
+descriptions["host"] = "Server hostname"
+descriptions["port"] = "Server port"
+descriptions["_deprecated"] = "log_level"  # Mark field as deprecated
+var schema = json_schema_described[Config](descriptions)
+```
+
+### Flatten (Nested Struct Embedding)
+
+Serialize/deserialize nested structs with their fields at the parent level:
+
+```mojo
+from morph import write_flat, read_flat
+
+@fieldwise_init
+struct Address(Defaultable, Movable):
+    var street: String
+    var city: String
+    def __init__(out self):
+        self.street = ""
+        self.city = ""
+
+@fieldwise_init
+struct Person(Defaultable, Movable):
+    var name: String
+    var address: Address
+    def __init__(out self):
+        self.name = ""
+        self.address = Address()
+
+var p = Person(name="Alice", address=Address(street="123 Main", city="NYC"))
+var json = write_flat(p)
+# {"name":"Alice","street":"123 Main","city":"NYC"}
+
+var restored = read_flat[Person](json)
+```
+
 ### CLI Parsing
 
 Parse command-line arguments directly into a struct:
@@ -200,6 +243,42 @@ def main() raises:
 - `Optional[T]` fields are non-required (default to None if omitted)
 - `List[T]` fields accept comma-separated values: `--tags=web,api,prod`
 - Other types require a value: `--port 9090`
+
+**Nested structs** with dot-notation:
+
+```mojo
+from morph import parse_args_nested
+
+@fieldwise_init
+struct ServerConfig(Defaultable, Movable):
+    var host: String
+    var port: Int
+    def __init__(out self):
+        self.host = "localhost"
+        self.port = 8080
+
+@fieldwise_init
+struct AppConfig(Defaultable, Movable):
+    var debug: Bool
+    var server: ServerConfig
+    def __init__(out self):
+        self.debug = False
+        self.server = ServerConfig()
+
+var args = List[String]("--debug", "--server.host", "0.0.0.0", "--server.port", "9090")
+var config = parse_args_nested[AppConfig](args)
+# config.server.host == "0.0.0.0", config.server.port == 9090
+```
+
+**Positional arguments** (non-flag args assigned to String fields in order):
+
+```mojo
+from morph import parse_args_positional
+
+var args = List[String]("input.txt", "output.txt", "--verbose")
+var config = parse_args_positional[CmdArgs](args)
+# config.source == "input.txt", config.dest == "output.txt", config.verbose == True
+```
 
 ### CSV Serde
 
@@ -254,7 +333,7 @@ pixi run tests
 ### Tasks
 
 ```bash
-pixi run tests            # Run all 180 tests + examples
+pixi run tests            # Run all 191 tests + examples
 pixi run test-serialize   # Run serialize tests only
 pixi run test-deserialize
 pixi run test-roundtrip
@@ -299,16 +378,18 @@ core features. Where C++ uses enums, Mojo uses struct constants + validators. Wh
 | JSON Schema (Draft 2020-12) | Done | `json_schema[T]()` |
 | Struct introspection (fields, as_type, replace) | Done | `fields()`, `replace()` |
 | CLI parsing (flags, Optional, List, short flags) | Done | `parse_args[T]()` |
+| CLI positional arguments | Done | `parse_args_positional[T]()` |
+| CLI nested structs (dot-notation) | Done | `parse_args_nested[T]()` |
+| Flatten (embed sub-struct at parent level) | Done | `write_flat()` / `read_flat()` |
+| JSON Schema descriptions & deprecated | Done | `json_schema_described[T]()` |
 | Custom serde traits | Done | `Serializable` / `Deserializable` |
 | Format backend trait | Done (stub) | `FormatBackend` for TOML/YAML |
 
 ### Remaining work
 
-- `Flatten` -- embed sub-struct fields at the same JSON level
-- `Description` / `Deprecated` annotations for JSON Schema
-- CLI positional args, nested structs (`--server.port`)
 - TOML backend (pure Mojo parser)
 - msgpack backend (pure Mojo binary format)
+- YAML backend (FFI to libyaml)
 
 ### Mojo language limitations
 

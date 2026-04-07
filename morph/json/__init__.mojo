@@ -19,5 +19,5 @@ Example:
     var bob = read[Person]('{"name":"Bob","age":25}')
 """
 
-from .writer import write
-from .reader import read
+from .writer import write, write_flat
+from .reader import read, read_flat

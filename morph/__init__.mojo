@@ -70,6 +70,6 @@ from .validate import (
     check_one_of,
     raise_if_errors,
 )
-from .schema import json_schema
-from .cli import parse_args, usage
+from .schema import json_schema, json_schema_described
+from .cli import parse_args, parse_args_positional, parse_args_nested, usage
 from .csv import csv_header, to_csv_row, to_csv, from_csv_row, from_csv

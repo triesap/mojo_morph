@@ -279,6 +279,102 @@ def _fill[
 
 
 # ---------------------------------------------------------------------------
+# Flatten: read top-level fields back into nested structs
+# ---------------------------------------------------------------------------
+
+
+def read_flat[
+    T: Morphable,
+    rename: StaticString = "none",
+    skip_private: Bool = False,
+    default_if_missing: Bool = False,
+](json_str: String) raises -> T:
+    """Deserialize a flattened JSON object back into a struct with nested structs.
+
+    Reconstructs nested JSON objects from flat keys, then delegates to the
+    normal ``read()`` function. Nested struct fields are identified by comparing
+    against the default-serialized struct's shape.
+
+    Parameters:
+        T: The target struct type.
+        rename: Naming strategy applied to field names.
+        skip_private: If True, skip fields starting with ``_``.
+        default_if_missing: If True, missing keys keep defaults.
+
+    Args:
+        json_str: A JSON string with flattened fields.
+
+    Returns:
+        A populated struct with nested structs reconstructed.
+    """
+    from morph.json.writer import write as _write
+
+    var default_instance = T()
+    var default_json_str = _write[T, rename=rename, skip_private=skip_private](
+        default_instance
+    )
+    var default_json = loads(default_json_str)
+
+    var flat_json = loads(json_str)
+    if not flat_json.is_object():
+        raise Error("Expected JSON object for flat deserialization")
+
+    var default_keys = default_json.object_keys()
+
+    var nested_fields = List[String]()
+    for di in range(len(default_keys)):
+        var dk = default_keys[di]
+        var raw = default_json.get(dk)
+        var sub = loads(raw)
+        if sub.is_object():
+            nested_fields.append(dk)
+
+    var out = String("{")
+    var first = True
+    for di in range(len(default_keys)):
+        var dk = default_keys[di]
+        if not first:
+            out += ","
+        first = False
+        out += '"' + dk + '":'
+
+        var is_nested = False
+        for ni in range(len(nested_fields)):
+            if nested_fields[ni] == dk:
+                is_nested = True
+                break
+
+        if is_nested:
+            var raw_sub = default_json.get(dk)
+            var sub = loads(raw_sub)
+            var sub_keys = sub.object_keys()
+            var inner = String("{")
+            var ifirst = True
+            for si in range(len(sub_keys)):
+                var sk = sub_keys[si]
+                if not ifirst:
+                    inner += ","
+                ifirst = False
+                inner += '"' + sk + '":'
+                if _has_key(flat_json, sk):
+                    inner += flat_json.get(sk)
+                else:
+                    inner += sub.get(sk)
+            inner += "}"
+            out += inner^
+        else:
+            if _has_key(flat_json, dk):
+                out += flat_json.get(dk)
+            else:
+                out += default_json.get(dk)
+
+    out += "}"
+    return read[T, rename=rename, skip_private=skip_private, default_if_missing=True](
+        out
+    )
+
+
+# ---------------------------------------------------------------------------
 # Optional deserialization
 # ---------------------------------------------------------------------------
 

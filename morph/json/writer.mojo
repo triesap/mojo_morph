@@ -236,6 +236,73 @@ def _ser_struct[
 
 
 # ---------------------------------------------------------------------------
+# Flatten: embed nested struct fields at top level
+# ---------------------------------------------------------------------------
+
+
+def write_flat[
+    T: AnyType,
+    pretty: Bool = False,
+    rename: StaticString = "none",
+    skip_private: Bool = False,
+](value: T) raises -> String:
+    """Serialize a struct, flattening nested struct fields to the top level.
+
+    Serializes ``value`` normally first, then inlines any top-level keys
+    whose values are JSON objects so that their sub-keys appear directly
+    at the top level.
+
+    Parameters:
+        T: The struct type.
+        pretty: If True, format with 2-space indentation.
+        rename: Naming strategy for JSON keys.
+        skip_private: If True, skip fields starting with ``_``.
+
+    Args:
+        value: The struct instance to serialize.
+
+    Returns:
+        A JSON string with nested struct fields flattened.
+    """
+    from mojson import loads as _loads, dumps as _dumps
+
+    var nested_json = write[T, rename=rename, skip_private=skip_private](value)
+    var parsed = _loads(nested_json)
+    if not parsed.is_object():
+        return nested_json
+
+    var keys = parsed.object_keys()
+    var out = String("{")
+    var first = True
+
+    for ki in range(len(keys)):
+        var k = keys[ki]
+        var raw = parsed.get(k)
+        var sub = _loads(raw)
+        if sub.is_object():
+            var sub_keys = sub.object_keys()
+            for si in range(len(sub_keys)):
+                if not first:
+                    out += ","
+                first = False
+                out += '"' + sub_keys[si] + '":' + sub.get(sub_keys[si])
+        else:
+            if not first:
+                out += ","
+            first = False
+            out += '"' + k + '":' + raw
+
+    out += "}"
+
+    comptime
+    if pretty:
+        var formatted = _loads(out)
+        return _dumps(formatted, indent="  ")
+
+    return out^
+
+
+# ---------------------------------------------------------------------------
 # Optional helpers
 # ---------------------------------------------------------------------------
 

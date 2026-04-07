@@ -26,6 +26,8 @@ from std.reflection import (
     get_base_type_name,
 )
 
+from std.collections import Dict
+
 from morph.reflect import (
     INT_NAME,
     INT64_NAME,
@@ -167,6 +169,132 @@ def _required[T: AnyType, rename: StaticString = "none"]() -> String:
             out += '"' + key + '"'
 
     return out^
+
+
+def json_schema_described[
+    T: AnyType,
+    rename: StaticString = "none",
+    title: StaticString = "",
+](descriptions: Dict[String, String]) raises -> String:
+    """Generate a JSON Schema with per-field descriptions.
+
+    Parameters:
+        T: The struct type to generate schema for.
+        rename: Naming convention for property keys.
+        title: Optional title for the root schema.
+
+    Args:
+        descriptions: A mapping of field names to description strings.
+            Keys matching field names will add "description" to that property.
+            A key named "_deprecated" with comma-separated field names marks
+            those fields as deprecated (sets "deprecated":true).
+
+    Returns:
+        A JSON Schema string with descriptions and deprecated annotations.
+    """
+    var schema = String('{"type":"object"')
+
+    comptime
+    if title != "":
+        schema += ',"title":"' + String(title) + '"'
+
+    schema += ',"properties":{'
+    schema += _properties_described[T, rename](descriptions)
+    schema += "}"
+
+    var req = _required[T, rename]()
+    if len(req) > 0:
+        schema += ',"required":[' + req + "]"
+
+    schema += "}"
+    return schema^
+
+
+def _properties_described[
+    T: AnyType, rename: StaticString = "none"
+](descriptions: Dict[String, String]) raises -> String:
+    """Build properties with optional descriptions and deprecated flags."""
+    comptime count = struct_field_count[T]()
+    comptime names = struct_field_names[T]()
+    comptime types = struct_field_types[T]()
+
+    var deprecated_list = String("")
+    if "_deprecated" in descriptions:
+        deprecated_list = descriptions["_deprecated"]
+
+    var out = String("")
+    var first = True
+
+    comptime
+    for idx in range(count):
+        comptime field_name = names[idx]
+        comptime field_type = types[idx]
+        comptime type_name = get_type_name[field_type]()
+
+        if not first:
+            out += ","
+        first = False
+
+        var key = String(field_name)
+
+        comptime
+        if rename == "camelCase":
+            from morph.rename import snake_to_camel
+
+            key = snake_to_camel(key)
+        elif rename == "PascalCase":
+            from morph.rename import snake_to_pascal
+
+            key = snake_to_pascal(key)
+        elif rename == "SCREAMING_SNAKE_CASE":
+            from morph.rename import snake_to_screaming
+
+            key = snake_to_screaming(key)
+
+        out += '"' + key + '":'
+
+        var base = _type_schema[field_type, type_name]()
+        var raw = String(field_name)
+        var has_desc = raw in descriptions
+        var is_deprecated = _contains_word(deprecated_list, raw)
+
+        if has_desc or is_deprecated:
+            var base_bytes = base.as_bytes()
+            var enriched = String("")
+            for bi in range(len(base_bytes) - 1):
+                enriched += chr(Int(base_bytes[bi]))
+            if has_desc:
+                enriched += ',"description":"' + descriptions[raw] + '"'
+            if is_deprecated:
+                enriched += ',"deprecated":true'
+            enriched += "}"
+            out += enriched^
+        else:
+            out += base
+
+    return out^
+
+
+def _contains_word(csv: String, word: String) -> Bool:
+    """Check if word appears in a comma-separated list."""
+    if len(csv) == 0:
+        return False
+    var data = csv.as_bytes()
+    var w = word.as_bytes()
+    var start = 0
+    for i in range(len(data) + 1):
+        if i == len(data) or data[i] == UInt8(ord(",")):
+            var segment_len = i - start
+            if segment_len == len(w):
+                var found = True
+                for j in range(segment_len):
+                    if data[start + j] != w[j]:
+                        found = False
+                        break
+                if found:
+                    return True
+            start = i + 1
+    return False
 
 
 def _type_schema[T: AnyType, type_name: StaticString]() -> String:
