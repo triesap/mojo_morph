@@ -55,18 +55,26 @@ pixi install
 
 ## Supported Types
 
-| Type | JSON | CSV | CLI |
-|------|------|-----|-----|
-| `Int`, `Int64` | yes | yes | yes |
-| `Bool` | yes | yes | yes (flag) |
-| `Float64`, `Float32` | yes | yes | yes |
-| `String` | yes | yes | yes |
-| `Optional[T]` | yes (null) | — | — |
-| `List[T]` | yes | — | — |
-| Nested structs | yes | — | — |
-| Custom traits | yes | — | — |
+| Type | JSON | CSV | CLI | TOML | YAML |
+|------|------|-----|-----|------|------|
+| `Int`, `Int64` | yes | yes | yes | planned | planned |
+| `Bool` | yes | yes | yes (flag) | planned | planned |
+| `Float64`, `Float32` | yes | yes | yes | planned | planned |
+| `String` | yes | yes | yes | planned | planned |
+| `Optional[T]` | yes (null) | no | no | planned | planned |
+| `List[T]` | yes | no | no | planned | planned |
+| Nested structs | yes | no | no | planned | planned |
+| Custom traits | yes | no | no | planned | planned |
 
 Where `T` is one of `Int`, `String`, `Float64`, `Bool`.
+
+**Why some cells are "no":**
+
+- **CSV Optional**: CSV has no null concept; could use an empty-string convention, but not yet implemented.
+- **CSV List / Nested / Custom**: CSV is flat and tabular. Lists would need a delimiter convention (e.g., `a;b;c`), nested structs would need column flattening (`parent.child`), and custom types would need `to_string`/`from_string`.
+- **CLI Optional**: reflect-cpp treats optional fields as non-required flags. Straightforward to add (planned).
+- **CLI List**: reflect-cpp supports `--tags=a,b,c` with comma splitting. Planned.
+- **CLI Nested**: reflect-cpp supports `--parent.child=value` dot-notation. Planned.
 
 ## Features
 
@@ -255,6 +263,37 @@ pixi run example-csv      # 09: CSV serialization/deserialization
 pixi run format           # Format code
 pixi run docs             # Generate and open API docs
 ```
+
+## Roadmap
+
+morph currently covers ~27% of [reflect-cpp](https://github.com/getml/reflect-cpp)'s feature set. Here's what's planned:
+
+### Near-term (high-value, low-effort)
+
+- `ExclusiveMinimum` / `ExclusiveMaximum` validators (`<` / `>` variants)
+- `replace(value, field, new)` -- deep copy with one field changed
+- `ExtraFields` -- capture unknown JSON keys into a dict
+- CLI `Optional` support -- non-required flags
+- CLI `List` support -- `--tags=a,b,c` comma-split values
+
+### Medium-term
+
+- `Flatten` -- embed sub-struct fields at the same JSON level
+- `NoOptionals` processor -- reject null on read
+- `Description` / `Deprecated` annotations for JSON Schema
+- CLI positional arguments, short flags (`-v`), nested structs (`--server.port`)
+- TOML backend (pure Mojo parser)
+- msgpack backend (pure Mojo binary format)
+
+### Blocked by Mojo language gaps
+
+These features require Mojo language evolution:
+
+- **Enum serde** -- Mojo has no `enum` keyword (GAP-1). Workaround: struct constants + `check_one_of`.
+- **Per-field attributes** -- No field-level `Rename`, `Skip`, `Description` annotations (GAP-2). Workaround: global params + naming conventions.
+- **Generic container decomposition** -- Cannot extract `T` from `List[T]` at compile time (GAP-3). Workaround: hardcoded `comptime if` chains.
+- **Variant/TaggedUnion serde** -- Cannot iterate `Variant[*Ts]` alternatives at compile time (GAP-5).
+- **Pattern/regex validators** -- Mojo has no regex library. Workaround: manual character validation.
 
 ## License
 
