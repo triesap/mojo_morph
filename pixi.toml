@@ -16,7 +16,6 @@ backend = { name = "pixi-build-rattler-build", version = "*" }
 [dependencies]
 morph = { path = "." }
 mojo = "<1.0"
-mojson = { git = "https://github.com/ehsanmok/mojson.git", branch = "main" }
 
 [feature.dev.dependencies]
 pre-commit = ">=4.2.0,<5"

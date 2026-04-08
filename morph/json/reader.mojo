@@ -1,7 +1,7 @@
 """JSON deserialization: JSON string -> struct.
 
 Uses compile-time reflection to walk struct fields and populate them
-from parsed JSON values. The mojson library handles JSON parsing.
+from parsed JSON values.
 
 Supported field types:
     Scalars: Int, Int64, Bool, Float64, Float32, String
@@ -50,8 +50,7 @@ from morph.reflect import (
 )
 from morph.serde import Deserializable
 from morph.rename import apply_rename
-from mojson import loads, Value
-from mojson.deserialize import get_string, get_int, get_bool, get_float
+from morph.json.value import loads, Value, get_string, get_int, get_bool, get_float
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 """JSON serialization and deserialization for morph.
 
-Uses mojson as the underlying JSON parsing/serialization engine and
-adds reflection-based struct mapping on top.
+Adds reflection-based struct mapping on top of a self-contained
+JSON parser (no external dependencies).
 
 Example:
 

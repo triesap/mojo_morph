@@ -32,7 +32,7 @@ from std.reflection import (
 )
 from std.collections import List, Dict
 from std.builtin.rebind import trait_downcast
-from mojson import Value
+from morph.json.value import Value
 from morph.reflect import (
     _Base,
     Morphable,
@@ -378,7 +378,7 @@ def parse_args_nested[T: Morphable](args: List[String]) raises -> T:
     """
     from morph.json.writer import write as _write
     from morph.json.reader import read as _read
-    from mojson import loads as _loads, dumps as _dumps
+    from morph.json.value import loads as _loads, dumps as _dumps
 
     var result = T()
     var json_str = _write(result)
@@ -468,7 +468,7 @@ def _is_bool_field(json: Value, key: String) -> Bool:
 
 def _maybe_quote(json: Value, key: String, val: String) -> String:
     """Quote the value as a JSON string if the original field is a string type."""
-    from mojson.serialize import _escape_string
+    from morph.json.value import escape_string as _escape_string
 
     try:
         var raw = json.get(key)

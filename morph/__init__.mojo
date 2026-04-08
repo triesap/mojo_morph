@@ -22,7 +22,7 @@ var bob = read[Person]('{"name":"Bob","age":25}')
 
 ## Modules
 
-- `morph.json` -- JSON serialization/deserialization (powered by mojson)
+- `morph.json` -- JSON serialization/deserialization (self-contained)
 - `morph.toml` -- TOML serialization/deserialization (pure Mojo)
 - `morph.yaml` -- YAML serialization/deserialization (pure Mojo)
 - `morph.reflect` -- Core reflection utilities (type matchers, field helpers)

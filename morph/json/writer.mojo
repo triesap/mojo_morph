@@ -1,7 +1,6 @@
 """JSON serialization: struct -> JSON string.
 
 Uses compile-time reflection to walk struct fields and produce JSON output.
-The mojson library handles JSON string escaping and Value serialization.
 
 Supported field types:
     Scalars: Int, Int64, Bool, Float64, Float32, String
@@ -48,7 +47,7 @@ from morph.reflect import (
 )
 from morph.serde import Serializable
 from morph.rename import apply_rename
-from mojson.serialize import _escape_string
+from morph.json.value import escape_string as _escape_string
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +83,7 @@ def write[
 
     comptime
     if pretty:
-        from mojson import loads as _loads, dumps as _dumps
+        from morph.json.value import loads as _loads, dumps as _dumps
 
         var parsed = _loads(json)
         return _dumps(parsed, indent="  ")
@@ -264,7 +263,7 @@ def write_flat[
     Returns:
         A JSON string with nested struct fields flattened.
     """
-    from mojson import loads as _loads, dumps as _dumps
+    from morph.json.value import loads as _loads, dumps as _dumps
 
     var nested_json = write[T, rename=rename, skip_private=skip_private](value)
     var parsed = _loads(nested_json)

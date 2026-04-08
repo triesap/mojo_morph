@@ -1,7 +1,7 @@
 """Format backend trait for pluggable serialization formats.
 
 Defines the ``FormatBackend`` trait that all format backends (JSON, TOML,
-YAML, CSV) implement. Currently only JSON is fully implemented via mojson.
+YAML, CSV) implement. JSON, TOML, and YAML are fully implemented.
 
 Future backends can implement this trait for new formats::
 

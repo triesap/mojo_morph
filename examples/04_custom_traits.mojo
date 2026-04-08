@@ -5,7 +5,6 @@ Demonstrates: override reflection with Serializable / Deserializable.
 
 from morph.json import write, read
 from morph.serde import Serializable, Deserializable
-from mojson import loads
 
 
 @fieldwise_init
