@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/ehsanmok/morph/actions/workflows/ci.yml/badge.svg)](https://github.com/ehsanmok/morph/actions/workflows/ci.yml)
 [![Docs](https://github.com/ehsanmok/morph/actions/workflows/docs.yaml/badge.svg)](https://ehsanmok.github.io/morph/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Reflection-driven serialization, deserialization, and data transformation for Mojo.
 
