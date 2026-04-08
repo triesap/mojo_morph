@@ -1,5 +1,8 @@
 # morph
 
+[![CI](https://github.com/ehsanmok/morph/actions/workflows/ci.yml/badge.svg)](https://github.com/ehsanmok/morph/actions/workflows/ci.yml)
+[![Docs](https://github.com/ehsanmok/morph/actions/workflows/docs.yaml/badge.svg)](https://ehsanmok.github.io/morph/)
+
 Reflection-driven serialization, deserialization, and data transformation for Mojo.
 
 Inspired by [reflect-cpp](https://github.com/getml/reflect-cpp), zero-boilerplate struct serde using compile-time reflection.
