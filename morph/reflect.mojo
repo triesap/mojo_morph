@@ -133,29 +133,3 @@ def is_list_type[T: AnyType]() -> Bool:
 def is_container_type[T: AnyType]() -> Bool:
     """True if T is a recognized container (Optional or List)."""
     return is_optional_type[T]() or is_list_type[T]()
-
-
-# ---------------------------------------------------------------------------
-# Field write helper
-# ---------------------------------------------------------------------------
-
-
-@always_inline
-def set_field[T: AnyType, idx: Int](mut target: T, ownedvalue: _Base):
-    """Write a value into a reflected struct field.
-
-    Uses trait_downcast + UnsafePointer to safely destroy the old value
-    and move the new one into place.
-
-    Parameters:
-        T: The struct type.
-        idx: The field index.
-
-    Args:
-        target: The struct instance to modify.
-        value: The new field value (moved in).
-    """
-    ref field = trait_downcast[_Base](__struct_field_ref(idx, target))
-    var ptr = UnsafePointer(to=field)
-    ptr.destroy_pointee()
-    ptr.init_pointee_move(value^)
