@@ -1,6 +1,6 @@
 """Minimal JSON value type and parsing for morph.
 
-Self-contained JSON engine replacing the mojson dependency.
+Self-contained JSON value type, parser, and serializer.
 Scalars are stored directly; arrays and objects store raw JSON
 strings and parse lazily on access.
 """

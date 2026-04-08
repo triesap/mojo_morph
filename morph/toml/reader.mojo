@@ -6,7 +6,7 @@ scalars, arrays, and [table] sections for nested structs.
 Strategy: parse TOML into key-value pairs, build a JSON string, delegate
 to the JSON reader. This reuses all existing type-handling logic.
 
-TOML has no null -- missing keys keep defaults, Optional fields stay None.
+TOML has no null; missing keys keep defaults, Optional fields stay None.
 """
 
 from std.collections import Optional, List

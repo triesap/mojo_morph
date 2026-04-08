@@ -178,7 +178,7 @@ def _fill[
             if not present:
                 comptime
                 if not default_if_missing:
-                    # Optional types naturally default to None -- don't raise
+                    # Optional types naturally default to None
                     comptime
                     if not (field_type_name == OPT_INT_NAME or field_type_name == OPT_STRING_NAME or field_type_name == OPT_FLOAT64_NAME or field_type_name == OPT_BOOL_NAME):
                         raise Error("Missing required field '" + key + "'")

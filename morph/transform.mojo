@@ -2,10 +2,10 @@
 
 Provides introspection and transformation operations on structs:
 
-- ``fields[T]()`` -- list field names and type names
-- ``field_names[T]()`` -- list field names only
-- ``as_type[Target, Source]()`` -- copy matching fields between structs
-- ``replace[T]()`` -- copy struct with one field changed (by name)
+- ``fields[T]()``: list field names and type names
+- ``field_names[T]()``: list field names only
+- ``as_type[Target, Source]()``: copy matching fields between structs
+- ``replace[T]()``: copy struct with one field changed (by name)
 """
 
 from std.reflection import (

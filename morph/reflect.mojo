@@ -1,7 +1,7 @@
 """Core reflection utilities for morph.
 
 Compile-time type matching, field iteration helpers, and type name constants
-extracted from mojson and pprint patterns. These utilities form the foundation
+These utilities form the foundation
 for format-agnostic serialization and deserialization.
 
 Supported scalar types:
