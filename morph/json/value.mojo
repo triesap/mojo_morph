@@ -213,9 +213,9 @@ def escape_string(s: String) -> String:
 
     Builds the result incrementally using String += so that no null terminators
     are embedded between appended substrings. ASCII-printable bytes (0x20–0x7F)
-    use chr(); multi-byte UTF-8 bytes (>=0x80) are forwarded via a Span slice
-    so they are not reinterpreted as Unicode code points (which would
-    double-encode them).
+    use chr(); multi-byte UTF-8 sequences are appended as StringSlice views via
+    s[byte=i:i+n] — zero-copy and no unsafe constructor needed since the
+    original String s is already valid UTF-8.
     """
     var out = String('"')
     var n = s.byte_length()
@@ -244,10 +244,9 @@ def escape_string(s: String) -> String:
             out += _hex_digit(Int(c & 0x0F))
             i += 1
         elif c >= 0x80:
-            # Multi-byte UTF-8 sequence: forward the leading byte and its
-            # continuation bytes as a raw Span slice. Using chr() here would
-            # reinterpret each byte as a Unicode code point and double-encode
-            # the sequence.
+            # Multi-byte UTF-8 sequence: append as a StringSlice view of the
+            # original String. String.__iadd__ accepts StringSlice directly so
+            # no allocation or unsafe constructor is needed.
             var seq_len: Int
             if c >= 0xF0:
                 seq_len = min(4, n - i)
@@ -255,7 +254,7 @@ def escape_string(s: String) -> String:
                 seq_len = min(3, n - i)
             else:
                 seq_len = min(2, n - i)
-            out += String(unsafe_from_utf8=data[i : i + seq_len])
+            out += s[byte=i : i + seq_len]
             i += seq_len
         else:
             out += chr(Int(c))
@@ -326,9 +325,7 @@ def _parse_value(s: String) raises -> Value:
                 break
             end += 1
         if not has_escapes:
-            return Value(
-                String(String(unsafe_from_utf8=s.as_bytes()[start:end]))
-            )
+            return Value(String(from_utf8_lossy=s[byte=start:end].as_bytes()))
         return Value(_unescape(s, start, end))
 
     if c == UInt8(ord("-")) or (c >= UInt8(ord("0")) and c <= UInt8(ord("9"))):
@@ -371,9 +368,10 @@ def _unescape(s: String, start: Int, end: Int) -> String:
 
     Builds the result incrementally using String +=. Escape sequences are
     converted to their character equivalents. Raw bytes >= 0x80 (multi-byte
-    UTF-8 sequences) are forwarded via Span slices so they are not
-    reinterpreted as code points. \\uXXXX code points are converted with
-    chr() which is correct because the decoded value IS a Unicode code point.
+    UTF-8 sequences) are appended as StringSlice views via s[byte=i:i+1],
+    which avoids reinterpreting raw bytes as code points and requires no
+    unsafe constructor. \\uXXXX code points are converted with chr() which
+    is correct because the decoded value IS a Unicode code point.
     """
     var out = String()
     var data = s.as_bytes()
@@ -417,9 +415,10 @@ def _unescape(s: String, start: Int, end: Int) -> String:
         else:
             var b = data[i]
             if b >= 0x80:
-                # Multi-byte UTF-8 sequence byte: forward via Span slice so
-                # the raw byte is NOT reinterpreted as a code point by chr().
-                out += String(unsafe_from_utf8=data[i : i + 1])
+                # Multi-byte UTF-8 continuation byte: append as StringSlice
+                # view of the original String so the raw byte is NOT
+                # reinterpreted as a Unicode code point by chr().
+                out += s[byte=i : i + 1]
                 i += 1
             else:
                 out += chr(Int(b))
@@ -576,7 +575,7 @@ def _extract_field_value(raw: String, key: String) raises -> String:
                     i += 2
                 else:
                     i += 1
-            var found_key = String(unsafe_from_utf8=raw.as_bytes()[key_start:i])
+            var found_key = String(from_utf8_lossy=raw[byte=key_start:i].as_bytes())
             i += 1
 
             while i < n and (
@@ -630,9 +629,7 @@ def _extract_json_value(raw: String, start: Int) raises -> String:
             if data[i] == UInt8(ord("\\")):
                 i += 2
             elif data[i] == UInt8(ord('"')):
-                return String(
-                    String(unsafe_from_utf8=raw.as_bytes()[vs : i + 1])
-                )
+                return String(from_utf8_lossy=raw[byte=vs : i + 1].as_bytes())
             else:
                 i += 1
         raise Error("Unterminated string")
@@ -655,7 +652,7 @@ def _extract_json_value(raw: String, start: Int) raises -> String:
                 elif data[i] == close:
                     depth -= 1
             i += 1
-        return String(String(unsafe_from_utf8=raw.as_bytes()[vs:i]))
+        return String(from_utf8_lossy=raw[byte=vs:i].as_bytes())
 
     var vs = i
     while (
@@ -668,7 +665,7 @@ def _extract_json_value(raw: String, start: Int) raises -> String:
         and data[i] != UInt8(ord("\n"))
     ):
         i += 1
-    return String(String(unsafe_from_utf8=raw.as_bytes()[vs:i]))
+    return String(from_utf8_lossy=raw[byte=vs:i].as_bytes())
 
 
 def _extract_array_element(raw: String, index: Int) raises -> String:
@@ -829,9 +826,7 @@ def _extract_object_keys(raw: String) -> List[String]:
                 in_str = False
                 if key_start >= 0 and depth == 1:
                     keys.append(
-                        String(
-                            String(unsafe_from_utf8=raw.as_bytes()[key_start:i])
-                        )
+                        String(from_utf8_lossy=raw[byte=key_start:i].as_bytes())
                     )
                     key_start = -1
             continue
