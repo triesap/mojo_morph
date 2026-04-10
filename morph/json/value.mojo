@@ -209,7 +209,12 @@ def _make_object(raw: String, var keys: List[String]) -> Value:
 
 
 def escape_string(s: String) -> String:
-    """Escape a string for JSON output, adding surrounding quotes."""
+    """Escape a string for JSON output, adding surrounding quotes.
+
+    Multi-byte UTF-8 sequences (bytes >= 0x80) are emitted as raw bytes.
+    Calling chr() on such bytes would reinterpret them as Unicode code points
+    and double-encode them, corrupting non-ASCII content.
+    """
     var out = String('"')
     var data = s.as_bytes()
     for i in range(len(data)):
@@ -228,6 +233,14 @@ def escape_string(s: String) -> String:
             out += "\\u00"
             out += _hex_digit(Int(c >> 4))
             out += _hex_digit(Int(c & 0x0F))
+        elif c >= 0x80:
+            # Byte is part of a multi-byte UTF-8 sequence. Pass it through
+            # as a raw byte rather than reinterpreting it as a Unicode code
+            # point, which would double-encode it.
+            var buf = List[UInt8](capacity=2)
+            buf.append(c)
+            buf.append(0)
+            out += String(unsafe_from_utf8=buf)
         else:
             out += chr(Int(c))
     out += '"'
@@ -369,7 +382,16 @@ def _unescape(s: String, start: Int, end: Int) -> String:
                 out += chr(Int(next_c))
             i += 2
         else:
-            out += chr(Int(data[i]))
+            var b = data[i]
+            if b >= 0x80:
+                # Raw byte of a multi-byte UTF-8 sequence: pass through
+                # as a raw byte rather than reinterpreting as a code point.
+                var buf = List[UInt8](capacity=2)
+                buf.append(b)
+                buf.append(0)
+                out += String(unsafe_from_utf8=buf)
+            else:
+                out += chr(Int(b))
             i += 1
     return out^
 
