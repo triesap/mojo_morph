@@ -211,46 +211,60 @@ def _make_object(raw: String, var keys: List[String]) -> Value:
 def escape_string(s: String) -> String:
     """Escape a string for JSON output, adding surrounding quotes.
 
-    Multi-byte UTF-8 sequences (bytes >= 0x80) are emitted as raw bytes.
-    Calling chr() on such bytes would reinterpret them as Unicode code points
-    and double-encode them, corrupting non-ASCII content.
+    Builds the result into a List[UInt8] byte buffer to avoid String
+    concatenation inserting null terminators between appended substrings.
+    ASCII-printable bytes (0x20–0x7F) and multi-byte UTF-8 bytes (>=0x80)
+    are emitted verbatim; only control characters and JSON special characters
+    receive escape sequences.
     """
-    var out = String('"')
+    var n = s.byte_length()
     var data = s.as_bytes()
-    for i in range(len(data)):
+    var buf = List[UInt8](capacity=n + 2)
+    buf.append(UInt8(ord('"')))
+    for i in range(n):
         var c = data[i]
         if c == UInt8(ord('"')):
-            out += '\\"'
+            buf.append(UInt8(ord("\\")))
+            buf.append(UInt8(ord('"')))
         elif c == UInt8(ord("\\")):
-            out += "\\\\"
+            buf.append(UInt8(ord("\\")))
+            buf.append(UInt8(ord("\\")))
         elif c == UInt8(ord("\n")):
-            out += "\\n"
+            buf.append(UInt8(ord("\\")))
+            buf.append(UInt8(ord("n")))
         elif c == UInt8(ord("\r")):
-            out += "\\r"
+            buf.append(UInt8(ord("\\")))
+            buf.append(UInt8(ord("r")))
         elif c == UInt8(ord("\t")):
-            out += "\\t"
+            buf.append(UInt8(ord("\\")))
+            buf.append(UInt8(ord("t")))
         elif c < 0x20:
-            out += "\\u00"
-            out += _hex_digit(Int(c >> 4))
-            out += _hex_digit(Int(c & 0x0F))
-        elif c >= 0x80:
-            # Byte is part of a multi-byte UTF-8 sequence. Pass it through
-            # as a raw byte rather than reinterpreting it as a Unicode code
-            # point, which would double-encode it.
-            var buf = List[UInt8](capacity=2)
-            buf.append(c)
-            buf.append(0)
-            out += String(unsafe_from_utf8=buf)
+            buf.append(UInt8(ord("\\")))
+            buf.append(UInt8(ord("u")))
+            buf.append(UInt8(ord("0")))
+            buf.append(UInt8(ord("0")))
+            buf.append(_hex_byte(Int(c >> 4)))
+            buf.append(_hex_byte(Int(c & 0x0F)))
         else:
-            out += chr(Int(c))
-    out += '"'
-    return out^
+            # ASCII printable (0x20–0x7F) or UTF-8 continuation/leading byte
+            # (>=0x80): emit the raw byte without reinterpreting as a code point.
+            buf.append(c)
+    buf.append(UInt8(ord('"')))
+    buf.append(0)
+    return String(unsafe_from_utf8=buf)^
 
 
 def _hex_digit(n: Int) -> String:
     if n < 10:
         return chr(ord("0") + n)
     return chr(ord("a") + n - 10)
+
+
+def _hex_byte(n: Int) -> UInt8:
+    """Return the ASCII byte for a hex nibble (0–15)."""
+    if n < 10:
+        return UInt8(ord("0") + n)
+    return UInt8(ord("a") + n - 10)
 
 
 # ── JSON parser (recursive descent) ─────────────────────────────
@@ -343,29 +357,35 @@ def _parse_value(s: String) raises -> Value:
 
 
 def _unescape(s: String, start: Int, end: Int) -> String:
-    """Unescape a JSON string between start and end indices."""
-    var out = String()
+    """Unescape a JSON string between start and end indices.
+
+    Builds the result into a List[UInt8] byte buffer to avoid String
+    concatenation inserting null terminators between appended substrings.
+    Raw bytes (ASCII and multi-byte UTF-8 sequences) are passed through
+    verbatim; \\uXXXX sequences are decoded directly to UTF-8 bytes.
+    """
     var data = s.as_bytes()
+    var buf = List[UInt8](capacity=end - start + 1)
     var i = start
     while i < end:
         if data[i] == UInt8(ord("\\")) and i + 1 < end:
             var next_c = data[i + 1]
             if next_c == UInt8(ord('"')):
-                out += '"'
+                buf.append(UInt8(ord('"')))
             elif next_c == UInt8(ord("\\")):
-                out += "\\"
+                buf.append(UInt8(ord("\\")))
             elif next_c == UInt8(ord("/")):
-                out += "/"
+                buf.append(UInt8(ord("/")))
             elif next_c == UInt8(ord("n")):
-                out += "\n"
+                buf.append(UInt8(10))   # '\n'
             elif next_c == UInt8(ord("r")):
-                out += "\r"
+                buf.append(UInt8(13))   # '\r'
             elif next_c == UInt8(ord("t")):
-                out += "\t"
+                buf.append(UInt8(9))    # '\t'
             elif next_c == UInt8(ord("b")):
-                out += chr(8)
+                buf.append(UInt8(8))    # backspace
             elif next_c == UInt8(ord("f")):
-                out += chr(12)
+                buf.append(UInt8(12))   # form feed
             elif next_c == UInt8(ord("u")) and i + 5 < end:
                 var cp = _parse_hex4(data, i + 2)
                 if cp >= 0xD800 and cp <= 0xDBFF and i + 11 < end:
@@ -376,24 +396,33 @@ def _unescape(s: String, start: Int, end: Int) -> String:
                         var low = _parse_hex4(data, i + 8)
                         cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00)
                         i += 6
-                out += chr(cp)
+                # Encode code point as UTF-8 bytes directly into buf.
+                if cp < 0x80:
+                    buf.append(UInt8(cp))
+                elif cp < 0x800:
+                    buf.append(UInt8(0xC0 | (cp >> 6)))
+                    buf.append(UInt8(0x80 | (cp & 0x3F)))
+                elif cp < 0x10000:
+                    buf.append(UInt8(0xE0 | (cp >> 12)))
+                    buf.append(UInt8(0x80 | ((cp >> 6) & 0x3F)))
+                    buf.append(UInt8(0x80 | (cp & 0x3F)))
+                else:
+                    buf.append(UInt8(0xF0 | (cp >> 18)))
+                    buf.append(UInt8(0x80 | ((cp >> 12) & 0x3F)))
+                    buf.append(UInt8(0x80 | ((cp >> 6) & 0x3F)))
+                    buf.append(UInt8(0x80 | (cp & 0x3F)))
                 i += 4
             else:
-                out += chr(Int(next_c))
+                buf.append(next_c)  # unrecognised escape: pass raw byte
             i += 2
         else:
-            var b = data[i]
-            if b >= 0x80:
-                # Raw byte of a multi-byte UTF-8 sequence: pass through
-                # as a raw byte rather than reinterpreting as a code point.
-                var buf = List[UInt8](capacity=2)
-                buf.append(b)
-                buf.append(0)
-                out += String(unsafe_from_utf8=buf)
-            else:
-                out += chr(Int(b))
+            # Pass the raw byte through. For multi-byte UTF-8 sequences the
+            # leading and continuation bytes (all >= 0x80) must be forwarded
+            # verbatim rather than reinterpreted as Unicode code points.
+            buf.append(data[i])
             i += 1
-    return out^
+    buf.append(0)
+    return String(unsafe_from_utf8=buf)^
 
 
 def _parse_hex4(data: Span[UInt8, _], start: Int) -> Int:
