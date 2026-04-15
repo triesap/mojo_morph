@@ -339,23 +339,7 @@ struct MyFormat(FormatBackend):
     def file_extension(self) -> String: ...
 ```
 
-## Modules
-
-| Module | Description |
-|--------|-------------|
-| `morph.json.writer` | Struct -> JSON serialization |
-| `morph.json.reader` | JSON -> struct deserialization |
-| `morph.toml` | TOML serialization/deserialization (pure Mojo) |
-| `morph.yaml` | YAML serialization/deserialization (pure Mojo) |
-| `morph.reflect` | Type introspection utilities |
-| `morph.rename` | Naming convention converters |
-| `morph.serde` | Custom Serializable/Deserializable traits |
-| `morph.transform` | Struct introspection: fields(), as_type() |
-| `morph.validate` | Runtime validation functions |
-| `morph.schema` | JSON Schema generation |
-| `morph.cli` | CLI argument parsing from struct definition |
-| `morph.csv` | CSV serialization/deserialization |
-| `morph.format` | FormatBackend trait for pluggable formats |
+Full API reference: [ehsanmok.github.io/morph](https://ehsanmok.github.io/morph/)
 
 ## Development
 
@@ -396,50 +380,6 @@ pixi run example-yaml     # 11: YAML serialization/deserialization
 pixi run format           # Format code
 pixi run docs             # Generate and open API docs
 ```
-
-## Feature Parity with reflect-cpp
-
-morph provides Mojo-idiomatic equivalents of [reflect-cpp](https://github.com/getml/reflect-cpp)'s
-core features. Where C++ uses enums, Mojo uses struct constants + validators. Where C++ uses
-`std::variant`, Mojo uses `Variant[*Ts]`. This is an apple-to-apple comparison.
-
-| Feature | Status | Mojo approach |
-|---------|--------|---------------|
-| JSON serde (scalars, Optional, List, nested, custom) | Done | `write()` / `read()` |
-| CSV serde (flat structs) | Done | `to_csv()` / `from_csv()` |
-| Field renaming (camel, Pascal, SCREAMING) | Done | `rename` param |
-| Skip/Default/Strict/NoOptionals processors | Done | Compile-time params |
-| Type discriminator (`add_type`) | Done | `add_type` param |
-| Array serialization (`as_array`) | Done | `as_array` param |
-| Validation (min/max, exclusive, range, length, one_of) | Done | `check_*` functions |
-| Enum-like values | Done | `check_one_of` (Mojo's idiom) |
-| JSON Schema (Draft 2020-12) | Done | `json_schema[T]()` |
-| Struct introspection (fields, as_type, replace) | Done | `fields()`, `replace()` |
-| CLI parsing (flags, Optional, List, short flags) | Done | `parse_args[T]()` |
-| CLI positional arguments | Done | `parse_args_positional[T]()` |
-| CLI nested structs (dot-notation) | Done | `parse_args_nested[T]()` |
-| Flatten (embed sub-struct at parent level) | Done | `write_flat()` / `read_flat()` |
-| JSON Schema descriptions & deprecated | Done | `json_schema_described[T]()` |
-| Custom serde traits | Done | `Serializable` / `Deserializable` |
-| TOML serde (scalars, Optional, List, nested) | Done | `to_toml()` / `from_toml()` |
-| YAML serde (scalars, Optional, List, nested) | Done | `to_yaml()` / `from_yaml()` |
-| Format backend trait | Done (stub) | `FormatBackend` for extensibility |
-
-### Remaining work
-
-- msgpack backend (pure Mojo binary format)
-- Custom serde traits for TOML/YAML
-
-### Mojo language limitations
-
-These affect implementation style, not whether features exist:
-
-| Limitation | Impact | Current approach |
-|-----------|--------|-----------------|
-| No field attributes | Per-field metadata | Global params + naming conventions |
-| No generic decomposition | Bounded container types | `comptime if` chains for known types |
-| No Variant reflection | TaggedUnion serde | Manual dispatch per union |
-| No regex | Pattern validation | Character-by-character |
 
 ## License
 
