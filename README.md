@@ -48,7 +48,7 @@ channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
 preview = ["pixi-build"]
 
 [dependencies]
-morph = { git = "https://github.com/ehsanmok/morph.git", tag = "v0.1.0" }
+morph = { git = "https://github.com/ehsanmok/morph.git", tag = "v0.1.1" }
 ```
 
 Then run:
