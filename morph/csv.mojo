@@ -18,12 +18,6 @@ Usage::
     # "name,age\\nAlice,30"
 """
 
-from std.reflection import (
-    struct_field_count,
-    struct_field_names,
-    struct_field_types,
-    get_type_name,
-)
 from std.collections import List
 from std.builtin.rebind import trait_downcast, rebind
 from morph.reflect import (
@@ -103,8 +97,8 @@ def csv_header[T: AnyType]() -> String:
     Parameters:
         T: The struct type.
     """
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
 
     var out = String("")
     var first = True
@@ -132,8 +126,8 @@ def to_csv_row[T: AnyType](value: T) -> String:
     Returns:
         A comma-separated row string.
     """
-    comptime count = struct_field_count[T]()
-    comptime types = struct_field_types[T]()
+    comptime count = reflect[T]().field_count()
+    comptime types = reflect[T]().field_types()
 
     var out = String("")
     var first = True
@@ -141,13 +135,13 @@ def to_csv_row[T: AnyType](value: T) -> String:
     comptime
     for idx in range(count):
         comptime field_type = types[idx]
-        comptime type_name = get_type_name[field_type]()
+        comptime type_name = reflect[field_type]().name()
 
         if not first:
             out += ","
         first = False
 
-        ref field = __struct_field_ref(idx, value)
+        ref field = reflect[T]().field_ref[idx](value)
 
         comptime
         if type_name == INT_NAME:
@@ -217,9 +211,9 @@ def from_csv_row[T: Morphable](header: List[String], row: String) raises -> T:
             + String(len(values))
         )
 
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
-    comptime types = struct_field_types[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
+    comptime types = reflect[T]().field_types()
 
     var result = T()
 
@@ -227,7 +221,7 @@ def from_csv_row[T: Morphable](header: List[String], row: String) raises -> T:
     for idx in range(count):
         comptime field_name = names[idx]
         comptime field_type = types[idx]
-        comptime type_name = get_type_name[field_type]()
+        comptime type_name = reflect[field_type]().name()
 
         var col_idx = -1
         for hi in range(len(header)):
@@ -237,7 +231,7 @@ def from_csv_row[T: Morphable](header: List[String], row: String) raises -> T:
 
         if col_idx >= 0:
             var raw = values[col_idx]
-            ref field = trait_downcast[_Base](__struct_field_ref(idx, result))
+            ref field = trait_downcast[_Base](reflect[T]().field_ref[idx](result))
             var ptr = UnsafePointer(to=field)
 
             comptime
@@ -264,7 +258,7 @@ def from_csv_row[T: Morphable](header: List[String], row: String) raises -> T:
     return result^
 
 
-comptime _CsvMorphable = Defaultable & Movable & Copyable
+comptime _CsvMorphable = Defaultable & Movable & Copyable & ImplicitlyDestructible
 
 
 def from_csv[T: _CsvMorphable](csv_str: String) raises -> List[T]:

@@ -23,13 +23,6 @@ Usage::
     var opts = parse_args[Options](args)
 """
 
-from std.reflection import (
-    struct_field_count,
-    struct_field_names,
-    struct_field_types,
-    get_type_name,
-    is_struct_type,
-)
 from std.collections import List, Dict
 from std.builtin.rebind import trait_downcast
 from morph.json.value import Value
@@ -72,9 +65,9 @@ def parse_args[T: Morphable](args: List[String]) raises -> T:
     """
     var result = T()
 
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
-    comptime types = struct_field_types[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
+    comptime types = reflect[T]().field_types()
 
     var i = 0
     while i < len(args):
@@ -97,14 +90,14 @@ def parse_args[T: Morphable](args: List[String]) raises -> T:
         for idx in range(count):
             comptime field_name = names[idx]
             comptime field_type = types[idx]
-            comptime type_name = get_type_name[field_type]()
+            comptime type_name = reflect[field_type]().name()
 
             var cli_name = String(field_name).replace("_", "-")
             var fn_str = String(field_name)
             var short_name = chr(Int(fn_str.as_bytes()[0]))
             if flag == cli_name or (is_short and flag == short_name):
                 matched = True
-                ref field = trait_downcast[_Base](__struct_field_ref(idx, result))
+                ref field = trait_downcast[_Base](reflect[T]().field_ref[idx](result))
                 var ptr = UnsafePointer(to=field)
 
                 comptime
@@ -198,9 +191,9 @@ def usage[T: AnyType]() -> String:
     Returns:
         A usage/help string.
     """
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
-    comptime types = struct_field_types[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
+    comptime types = reflect[T]().field_types()
 
     var out = String("Options:\n")
 
@@ -208,7 +201,7 @@ def usage[T: AnyType]() -> String:
     for idx in range(count):
         comptime field_name = names[idx]
         comptime field_type = types[idx]
-        comptime type_name = get_type_name[field_type]()
+        comptime type_name = reflect[field_type]().name()
 
         var cli_name = String(field_name).replace("_", "-")
 
@@ -249,9 +242,9 @@ def parse_args_positional[T: Morphable](args: List[String]) raises -> T:
     """
     var result = T()
 
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
-    comptime types = struct_field_types[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
+    comptime types = reflect[T]().field_types()
 
     var positional_idx = 0
     var i = 0
@@ -267,14 +260,14 @@ def parse_args_positional[T: Morphable](args: List[String]) raises -> T:
             for idx in range(count):
                 comptime field_name = names[idx]
                 comptime field_type = types[idx]
-                comptime type_name = get_type_name[field_type]()
+                comptime type_name = reflect[field_type]().name()
 
                 comptime
                 if type_name == STRING_NAME:
                     if pos_count == positional_idx:
                         pos_matched = True
                         ref field = trait_downcast[_Base](
-                            __struct_field_ref(idx, result)
+                            reflect[T]().field_ref[idx](result)
                         )
                         var ptr = UnsafePointer(to=field)
                         ptr.destroy_pointee()
@@ -299,7 +292,7 @@ def parse_args_positional[T: Morphable](args: List[String]) raises -> T:
         for idx in range(count):
             comptime field_name = names[idx]
             comptime field_type = types[idx]
-            comptime type_name = get_type_name[field_type]()
+            comptime type_name = reflect[field_type]().name()
 
             var cli_name = String(field_name).replace("_", "-")
             var fn_str = String(field_name)
@@ -307,7 +300,7 @@ def parse_args_positional[T: Morphable](args: List[String]) raises -> T:
             if flag == cli_name or (is_short and flag == short_name):
                 matched = True
                 ref field = trait_downcast[_Base](
-                    __struct_field_ref(idx, result)
+                    reflect[T]().field_ref[idx](result)
                 )
                 var ptr = UnsafePointer(to=field)
 

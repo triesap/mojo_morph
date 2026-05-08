@@ -9,13 +9,6 @@ Supported field types:
     Nested structs (indented sub-mappings)
 """
 
-from std.reflection import (
-    struct_field_count,
-    struct_field_names,
-    struct_field_types,
-    get_type_name,
-    is_struct_type,
-)
 from std.builtin.rebind import trait_downcast, rebind
 from std.collections import Optional, List
 
@@ -68,9 +61,9 @@ def _ser_mapping[
     skip_private: Bool = False,
 ](value: T, indent: Int) raises -> String:
     """Serialize struct fields as YAML key: value pairs."""
-    comptime field_count = struct_field_count[T]()
-    comptime field_names_ = struct_field_names[T]()
-    comptime field_types_ = struct_field_types[T]()
+    comptime field_count = reflect[T]().field_count()
+    comptime field_names_ = reflect[T]().field_names()
+    comptime field_types_ = reflect[T]().field_types()
 
     var out = String("")
     var pad = _indent(indent)
@@ -79,7 +72,7 @@ def _ser_mapping[
     for idx in range(field_count):
         comptime field_name = field_names_[idx]
         comptime field_type = field_types_[idx]
-        comptime field_type_name = get_type_name[field_type]()
+        comptime field_type_name = reflect[field_type]().name()
 
         var raw_name = String(field_name)
         var skip = False
@@ -97,7 +90,7 @@ def _ser_mapping[
             else:
                 key = apply_rename(raw_name, String(rename))
 
-            ref field = __struct_field_ref(idx, value)
+            ref field = reflect[T]().field_ref[idx](value)
 
             comptime
             if field_type_name == INT_NAME:
@@ -150,7 +143,7 @@ def _ser_mapping[
                 out += pad + key + ": " + String(rebind[Float64](field)) + "\n"
             elif field_type_name == FLOAT32_NAME or _FLOAT32_SIMD_PREFIX in field_type_name:
                 out += pad + key + ": " + String(rebind[Float32](field)) + "\n"
-            elif is_struct_type[field_type]():
+            elif reflect[field_type]().is_struct():
                 out += pad + key + ":\n"
                 out += _ser_mapping[field_type, rename, skip_private](
                     rebind[field_type](field), indent + 2

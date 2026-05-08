@@ -12,14 +12,6 @@ Supported container types (hardcoded until GAP-3 is resolved):
     List[Int], List[String], List[Float64], List[Bool]
 """
 
-from std.reflection import (
-    struct_field_count,
-    struct_field_names,
-    struct_field_types,
-    get_type_name,
-    get_base_type_name,
-    is_struct_type,
-)
 from std.builtin.rebind import trait_downcast, downcast
 from std.collections import Optional, List
 
@@ -28,22 +20,22 @@ from std.collections import Optional, List
 # Compile-time type name constants
 # ---------------------------------------------------------------------------
 
-comptime INT_NAME = get_type_name[Int]()
-comptime INT64_NAME = get_type_name[Int64]()
-comptime BOOL_NAME = get_type_name[Bool]()
-comptime STRING_NAME = get_type_name[String]()
-comptime FLOAT64_NAME = get_type_name[Float64]()
-comptime FLOAT32_NAME = get_type_name[Float32]()
+comptime INT_NAME = reflect[Int]().name()
+comptime INT64_NAME = reflect[Int64]().name()
+comptime BOOL_NAME = reflect[Bool]().name()
+comptime STRING_NAME = reflect[String]().name()
+comptime FLOAT64_NAME = reflect[Float64]().name()
+comptime FLOAT32_NAME = reflect[Float32]().name()
 
-comptime OPT_INT_NAME = get_type_name[Optional[Int]]()
-comptime OPT_STRING_NAME = get_type_name[Optional[String]]()
-comptime OPT_FLOAT64_NAME = get_type_name[Optional[Float64]]()
-comptime OPT_BOOL_NAME = get_type_name[Optional[Bool]]()
+comptime OPT_INT_NAME = reflect[Optional[Int]]().name()
+comptime OPT_STRING_NAME = reflect[Optional[String]]().name()
+comptime OPT_FLOAT64_NAME = reflect[Optional[Float64]]().name()
+comptime OPT_BOOL_NAME = reflect[Optional[Bool]]().name()
 
-comptime LIST_INT_NAME = get_type_name[List[Int]]()
-comptime LIST_STRING_NAME = get_type_name[List[String]]()
-comptime LIST_FLOAT64_NAME = get_type_name[List[Float64]]()
-comptime LIST_BOOL_NAME = get_type_name[List[Bool]]()
+comptime LIST_INT_NAME = reflect[List[Int]]().name()
+comptime LIST_STRING_NAME = reflect[List[String]]().name()
+comptime LIST_FLOAT64_NAME = reflect[List[Float64]]().name()
+comptime LIST_BOOL_NAME = reflect[List[Bool]]().name()
 
 comptime _FLOAT64_SIMD_PREFIX = "SIMD[DType.float64"
 comptime _FLOAT32_SIMD_PREFIX = "SIMD[DType.float32"
@@ -54,7 +46,7 @@ comptime _FLOAT32_SIMD_PREFIX = "SIMD[DType.float32"
 # ---------------------------------------------------------------------------
 
 comptime _Base = ImplicitlyDestructible & Movable
-comptime Morphable = Defaultable & Movable
+comptime Morphable = Defaultable & Movable & ImplicitlyDestructible
 
 
 # ---------------------------------------------------------------------------
@@ -64,37 +56,37 @@ comptime Morphable = Defaultable & Movable
 
 @always_inline
 def is_int_type[T: AnyType]() -> Bool:
-    comptime tname = get_type_name[T]()
+    comptime tname = reflect[T]().name()
     return tname == INT_NAME
 
 
 @always_inline
 def is_int64_type[T: AnyType]() -> Bool:
-    comptime tname = get_type_name[T]()
+    comptime tname = reflect[T]().name()
     return tname == INT64_NAME
 
 
 @always_inline
 def is_bool_type[T: AnyType]() -> Bool:
-    comptime tname = get_type_name[T]()
+    comptime tname = reflect[T]().name()
     return tname == BOOL_NAME
 
 
 @always_inline
 def is_string_type[T: AnyType]() -> Bool:
-    comptime tname = get_type_name[T]()
+    comptime tname = reflect[T]().name()
     return tname == STRING_NAME
 
 
 @always_inline
 def is_float64_type[T: AnyType]() -> Bool:
-    comptime tname = get_type_name[T]()
+    comptime tname = reflect[T]().name()
     return tname == FLOAT64_NAME or _FLOAT64_SIMD_PREFIX in tname
 
 
 @always_inline
 def is_float32_type[T: AnyType]() -> Bool:
-    comptime tname = get_type_name[T]()
+    comptime tname = reflect[T]().name()
     return tname == FLOAT32_NAME or _FLOAT32_SIMD_PREFIX in tname
 
 
@@ -102,7 +94,7 @@ def is_float32_type[T: AnyType]() -> Bool:
 def is_scalar_type[T: AnyType]() -> Bool:
     """True if T is a primitive scalar: Int, Int64, Bool, Float64, Float32, String.
     """
-    comptime tname = get_type_name[T]()
+    comptime tname = reflect[T]().name()
     return (
         tname == INT_NAME
         or tname == INT64_NAME
@@ -118,14 +110,14 @@ def is_scalar_type[T: AnyType]() -> Bool:
 @always_inline
 def is_optional_type[T: AnyType]() -> Bool:
     """True if T is one of the supported Optional[Scalar] types."""
-    comptime base = get_base_type_name[T]()
+    comptime base = reflect[T]().base_name()
     return base == "Optional"
 
 
 @always_inline
 def is_list_type[T: AnyType]() -> Bool:
     """True if T is one of the supported List[Scalar] types."""
-    comptime base = get_base_type_name[T]()
+    comptime base = reflect[T]().base_name()
     return base == "List"
 
 

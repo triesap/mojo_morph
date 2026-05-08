@@ -8,12 +8,6 @@ Provides introspection and transformation operations on structs:
 - ``replace[T]()``: copy struct with one field changed (by name)
 """
 
-from std.reflection import (
-    struct_field_count,
-    struct_field_names,
-    struct_field_types,
-    get_type_name,
-)
 from std.builtin.rebind import trait_downcast, rebind
 from morph.reflect import _Base, Morphable
 
@@ -45,9 +39,9 @@ def fields[T: AnyType]() -> List[FieldInfo]:
     Returns:
         List of (name, type_name) pairs.
     """
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
-    comptime types = struct_field_types[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
+    comptime types = reflect[T]().field_types()
 
     var result = List[FieldInfo]()
 
@@ -55,7 +49,7 @@ def fields[T: AnyType]() -> List[FieldInfo]:
     for idx in range(count):
         comptime fname = names[idx]
         comptime ftype = types[idx]
-        comptime tname = get_type_name[ftype]()
+        comptime tname = reflect[ftype]().name()
         result.append(FieldInfo(name=String(fname), type_name=String(tname)))
 
     return result^
@@ -67,8 +61,8 @@ def field_names[T: AnyType]() -> List[String]:
     Parameters:
         T: A struct type.
     """
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
 
     var result = List[String]()
 
@@ -107,15 +101,15 @@ def replace[
     var json_str = _write(source)
     var result = _read[T, default_if_missing=True](json_str)
 
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
 
     comptime
     for idx in range(count):
         comptime fname = names[idx]
         comptime
         if fname == field_name:
-            ref field = trait_downcast[_Base](__struct_field_ref(idx, result))
+            ref field = trait_downcast[_Base](reflect[T]().field_ref[idx](result))
             var ptr = UnsafePointer(to=field)
             ptr.destroy_pointee()
             ptr.bitcast[String]().init_pointee_move(new_value)
@@ -145,15 +139,15 @@ def replace_int[
     var json_str = _write(source)
     var result = _read[T, default_if_missing=True](json_str)
 
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
 
     comptime
     for idx in range(count):
         comptime fname = names[idx]
         comptime
         if fname == field_name:
-            ref field = trait_downcast[_Base](__struct_field_ref(idx, result))
+            ref field = trait_downcast[_Base](reflect[T]().field_ref[idx](result))
             var ptr = UnsafePointer(to=field)
             ptr.destroy_pointee()
             ptr.bitcast[Int]().init_pointee_move(new_value)

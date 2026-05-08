@@ -18,14 +18,6 @@ Usage::
     # {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name","age"]}
 """
 
-from std.reflection import (
-    struct_field_count,
-    struct_field_names,
-    struct_field_types,
-    get_type_name,
-    get_base_type_name,
-)
-
 from std.collections import Dict
 
 from morph.reflect import (
@@ -91,9 +83,9 @@ def json_schema[
 
 def _properties[T: AnyType, rename: StaticString = "none"]() -> String:
     """Build the "properties" object contents."""
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
-    comptime types = struct_field_types[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
+    comptime types = reflect[T]().field_types()
 
     var out = String("")
     var first = True
@@ -102,7 +94,7 @@ def _properties[T: AnyType, rename: StaticString = "none"]() -> String:
     for idx in range(count):
         comptime field_name = names[idx]
         comptime field_type = types[idx]
-        comptime type_name = get_type_name[field_type]()
+        comptime type_name = reflect[field_type]().name()
 
         if not first:
             out += ","
@@ -132,9 +124,9 @@ def _properties[T: AnyType, rename: StaticString = "none"]() -> String:
 
 def _required[T: AnyType, rename: StaticString = "none"]() -> String:
     """Build the "required" array contents (non-Optional fields)."""
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
-    comptime types = struct_field_types[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
+    comptime types = reflect[T]().field_types()
 
     var out = String("")
     var first = True
@@ -142,7 +134,7 @@ def _required[T: AnyType, rename: StaticString = "none"]() -> String:
     comptime
     for idx in range(count):
         comptime field_type = types[idx]
-        comptime type_name = get_type_name[field_type]()
+        comptime type_name = reflect[field_type]().name()
 
         comptime
         if not (type_name == OPT_INT_NAME or type_name == OPT_STRING_NAME or type_name == OPT_FLOAT64_NAME or type_name == OPT_BOOL_NAME):
@@ -214,9 +206,9 @@ def _properties_described[
     T: AnyType, rename: StaticString = "none"
 ](descriptions: Dict[String, String]) raises -> String:
     """Build properties with optional descriptions and deprecated flags."""
-    comptime count = struct_field_count[T]()
-    comptime names = struct_field_names[T]()
-    comptime types = struct_field_types[T]()
+    comptime count = reflect[T]().field_count()
+    comptime names = reflect[T]().field_names()
+    comptime types = reflect[T]().field_types()
 
     var deprecated_list = String("")
     if "_deprecated" in descriptions:
@@ -229,7 +221,7 @@ def _properties_described[
     for idx in range(count):
         comptime field_name = names[idx]
         comptime field_type = types[idx]
-        comptime type_name = get_type_name[field_type]()
+        comptime type_name = reflect[field_type]().name()
 
         if not first:
             out += ","

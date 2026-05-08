@@ -9,13 +9,6 @@ Supported field types:
     Custom: types implementing morph.serde.Serializable
 """
 
-from std.reflection import (
-    struct_field_count,
-    struct_field_names,
-    struct_field_types,
-    get_type_name,
-    is_struct_type,
-)
 from std.builtin.rebind import trait_downcast, rebind
 from std.collections import Optional, List
 
@@ -71,9 +64,9 @@ def _ser_table[
     skip_private: Bool = False,
 ](value: T, prefix: String) raises -> String:
     """Serialize struct fields as TOML key-value pairs plus nested tables."""
-    comptime field_count = struct_field_count[T]()
-    comptime field_names_ = struct_field_names[T]()
-    comptime field_types_ = struct_field_types[T]()
+    comptime field_count = reflect[T]().field_count()
+    comptime field_names_ = reflect[T]().field_names()
+    comptime field_types_ = reflect[T]().field_types()
 
     var scalars = String("")
     var tables = String("")
@@ -82,7 +75,7 @@ def _ser_table[
     for idx in range(field_count):
         comptime field_name = field_names_[idx]
         comptime field_type = field_types_[idx]
-        comptime field_type_name = get_type_name[field_type]()
+        comptime field_type_name = reflect[field_type]().name()
 
         var raw_name = String(field_name)
         var skip = False
@@ -100,7 +93,7 @@ def _ser_table[
             else:
                 key = apply_rename(raw_name, String(rename))
 
-            ref field = __struct_field_ref(idx, value)
+            ref field = reflect[T]().field_ref[idx](value)
 
             comptime
             if field_type_name == INT_NAME:
@@ -145,7 +138,7 @@ def _ser_table[
                 scalars += key + " = " + String(rebind[Float64](field)) + "\n"
             elif field_type_name == FLOAT32_NAME or _FLOAT32_SIMD_PREFIX in field_type_name:
                 scalars += key + " = " + String(rebind[Float32](field)) + "\n"
-            elif is_struct_type[field_type]():
+            elif reflect[field_type]().is_struct():
                 var section: String
                 if len(prefix) > 0:
                     section = prefix + "." + key
